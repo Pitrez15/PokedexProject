@@ -1,7 +1,6 @@
 package com.example.pokedex
 
 import android.os.Bundle
-import android.os.PersistableBundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -16,7 +15,6 @@ import com.example.pokedex.ui.pokemonlist.PokemonListScreen
 import com.example.pokedex.ui.pokemonlist.PokemonListViewModel
 import com.example.pokedex.ui.theme.JetpackComposePokedexTheme
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.compose.runtime.collectAsState
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -30,10 +28,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 NavHost(navController = navController, startDestination = "pokemon_list_screen") {
                     composable("pokemon_list_screen") {
-                        PokemonListScreen(
-                            navController,
-                            viewModel.pokemonListState.collectAsState().value
-                        )
+                        PokemonListScreen(navController)
                     }
                     composable(
                         "pokemon_detail_screen/{dominantColor}/{pokemonName}",

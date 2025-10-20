@@ -23,7 +23,7 @@ class PokemonListViewModel @Inject constructor(
 ) : ViewModel() {
 
     private var _pokemonListState = MutableStateFlow(PokemonListState())
-    val pokemonListState = _pokemonListState.asStateFlow()
+    val pokemonListState get() = _pokemonListState.asStateFlow()
 
     private var currentPage = 0
 
@@ -46,18 +46,19 @@ class PokemonListViewModel @Inject constructor(
                         }
                         val url = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${number}.png"
                         PokedexListEntry(entry.name.capitalize(Locale.ROOT), url, number.toInt())
-                    }
-                    currentPage++
+                    } ?: emptyList()
 
-                    val list = _pokemonListState.value.pokemonList.toMutableList()
-                    list.addAll(pokedexEntries ?: listOf())
-                    _pokemonListState.update {
-                        it.copy(
+                    _pokemonListState.update { curState ->
+                        val endReached = currentPage * PAGE_SIZE >= result.data!!.count
+                        curState.copy(
                             isLoading = false,
                             loadError = "",
-                            pokemonList = list.toList()
+                            pokemonList = curState.pokemonList + pokedexEntries,
+                            endReached = endReached
                         )
                     }
+
+                    currentPage++
                 }
                 is Resource.Error -> {
                     _pokemonListState.update {

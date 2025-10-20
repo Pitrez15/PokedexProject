@@ -55,8 +55,10 @@ import com.example.pokedex.ui.theme.RobotoCondensed
 @Composable
 fun PokemonListScreen(
     navController: NavController?,
-    state: PokemonListState
+    viewModel: PokemonListViewModel = hiltViewModel()
 ) {
+    val state by viewModel.pokemonListState.collectAsState()
+
     Surface(
         color = MaterialTheme.colors.background,
         modifier = Modifier.fillMaxSize()
@@ -71,7 +73,7 @@ fun PokemonListScreen(
                     .align(Alignment.CenterHorizontally)
             )
             SearchBar(
-                hint = "Search",
+                hint = "Search...",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -79,7 +81,7 @@ fun PokemonListScreen(
 
             }
             Spacer(modifier = Modifier.height(16.dp))
-            PokemonList(navController = navController, state = state)
+            PokemonList(navController = navController, state = state, viewModel = viewModel)
         }
     }
 }
@@ -94,7 +96,7 @@ fun SearchBar(
         mutableStateOf("")
     }
     var isHintDisplayed by remember {
-        mutableStateOf(hint.isNotBlank())
+        mutableStateOf(hint != "")
     }
 
     Box(modifier = modifier) {
@@ -132,8 +134,14 @@ fun SearchBar(
 fun PokemonList(
     navController: NavController?,
     state: PokemonListState,
-    viewModel: PokemonListViewModel = hiltViewModel()
+    viewModel: PokemonListViewModel
 ) {
+    LaunchedEffect(state.pokemonList.size, state.endReached) {
+        if (!state.endReached && !state.isLoading) {
+            viewModel.loadPokemonPaginated()
+        }
+    }
+
     LazyColumn(contentPadding = PaddingValues(16.dp)) {
         val itemCount = if (state.pokemonList.size % 2 == 0) {
             state.pokemonList.size / 2
@@ -141,12 +149,9 @@ fun PokemonList(
             state.pokemonList.size / 2 + 1
         }
 
-        items(itemCount) {
-            if (it >= itemCount - 1 && !state.endReached) {
-                viewModel.loadPokemonPaginated()
-            }
+        items(itemCount) { i ->
             PokedexRow(
-                rowIndex = it,
+                rowIndex = i,
                 entries = state.pokemonList,
                 navController = navController
             )
@@ -250,5 +255,5 @@ fun PokedexRow(
 @Preview
 @Composable
 fun PreviewPokemonList() {
-    PokemonListScreen(null, PokemonListState())
+    PokemonListScreen(null)
 }

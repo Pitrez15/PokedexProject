@@ -116,7 +116,7 @@ dependencies {
     ksp("com.google.dagger:hilt-compiler:2.57.2")
     implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
 
-    implementation("com.android.support:palette-v7:28.0.0")
+    implementation("androidx.palette:palette-ktx:1.0.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
