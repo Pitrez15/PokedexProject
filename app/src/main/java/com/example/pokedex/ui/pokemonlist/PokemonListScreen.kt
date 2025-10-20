@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.Button
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -31,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -95,9 +95,7 @@ fun SearchBar(
     var text by remember {
         mutableStateOf("")
     }
-    var isHintDisplayed by remember {
-        mutableStateOf(hint != "")
-    }
+    val shouldShowHint = text.isEmpty()
 
     Box(modifier = modifier) {
         BasicTextField(
@@ -114,12 +112,9 @@ fun SearchBar(
                 .shadow(5.dp, CircleShape)
                 .background(Color.White, CircleShape)
                 .padding(horizontal = 20.dp, vertical = 12.dp)
-                .onFocusChanged {
-                    isHintDisplayed = it.isFocused
-                }
         )
 
-        if (isHintDisplayed) {
+        if (shouldShowHint) {
             Text(
                 text = hint,
                 color = Color.LightGray,
@@ -155,6 +150,21 @@ fun PokemonList(
                 entries = state.pokemonList,
                 navController = navController
             )
+        }
+    }
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        if (state.isLoading) {
+            CircularProgressIndicator(color = MaterialTheme.colors.primary)
+        }
+
+        if (state.loadError.isNotEmpty()) {
+            RetrySection(error = state.loadError) {
+                viewModel.loadPokemonPaginated()
+            }
         }
     }
 }
@@ -250,6 +260,23 @@ fun PokedexRow(
         }
     }
     Spacer(modifier = Modifier.height(16.dp))
+}
+
+@Composable
+fun RetrySection(
+    error: String,
+    onRetry: () -> Unit
+) {
+    Column {
+        Text(error, color = Color.Red, fontSize = 18.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(
+            onClick = { onRetry() },
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ) {
+            Text(text = "Retry")
+        }
+    }
 }
 
 @Preview
