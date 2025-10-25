@@ -34,7 +34,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -42,8 +41,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.navigation.NavController
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -54,11 +51,9 @@ import com.example.pokedex.ui.theme.RobotoCondensed
 
 @Composable
 fun PokemonListScreen(
-    navController: NavController?,
-    viewModel: PokemonListViewModel = hiltViewModel()
+    state: PokemonListState,
+    uiEvent: (PokemonListUiEvent) -> Unit = {},
 ) {
-    val state by viewModel.pokemonListState.collectAsState()
-
     Surface(
         color = MaterialTheme.colors.background,
         modifier = Modifier.fillMaxSize()
@@ -78,10 +73,10 @@ fun PokemonListScreen(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-
+                uiEvent(PokemonListUiEvent.OnPokemonSearched(it))
             }
             Spacer(modifier = Modifier.height(16.dp))
-            PokemonList(navController = navController, state = state, viewModel = viewModel)
+            PokemonList(state = state, uiEvent = uiEvent)
         }
     }
 }
@@ -127,16 +122,9 @@ fun SearchBar(
 
 @Composable
 fun PokemonList(
-    navController: NavController?,
     state: PokemonListState,
-    viewModel: PokemonListViewModel
+    uiEvent: (PokemonListUiEvent) -> Unit = {}
 ) {
-    LaunchedEffect(state.pokemonList.size, state.endReached) {
-        if (!state.endReached && !state.isLoading) {
-            viewModel.loadPokemonPaginated()
-        }
-    }
-
     LazyColumn(contentPadding = PaddingValues(16.dp)) {
         val itemCount = if (state.pokemonList.size % 2 == 0) {
             state.pokemonList.size / 2
@@ -144,11 +132,17 @@ fun PokemonList(
             state.pokemonList.size / 2 + 1
         }
 
-        items(itemCount) { i ->
+        items(itemCount) {
+            if (it >= itemCount - 1 && !state.endReached && !state.isLoading && !state.isSearching) {
+                LaunchedEffect(true) {
+                        uiEvent(PokemonListUiEvent.TriggerLoadPaginated)
+                    }
+            }
+
             PokedexRow(
-                rowIndex = i,
+                rowIndex = it,
                 entries = state.pokemonList,
-                navController = navController
+                uiEvent = uiEvent
             )
         }
     }
@@ -163,7 +157,7 @@ fun PokemonList(
 
         if (state.loadError.isNotEmpty()) {
             RetrySection(error = state.loadError) {
-                viewModel.loadPokemonPaginated()
+                uiEvent(PokemonListUiEvent.TriggerLoadPaginated)
             }
         }
     }
@@ -172,9 +166,8 @@ fun PokemonList(
 @Composable
 fun PokedexEntry(
     entry: PokedexListEntry,
-    navController: NavController?,
     modifier: Modifier = Modifier,
-    viewModel: PokemonListViewModel = hiltViewModel()
+    uiEvent: (PokemonListUiEvent) -> Unit = {},
 ) {
     val defaultDominantColor = MaterialTheme.colors.surface
     var dominantColor by remember {
@@ -196,9 +189,7 @@ fun PokedexEntry(
                 )
             )
             .clickable {
-                navController?.navigate(
-                    "pokemon_detail_screen/${dominantColor.toArgb()}/${entry.pokemonName}"
-                )
+                uiEvent(PokemonListUiEvent.OnPokemonClicked(dominantColor, entry))
             }
     ) {
         Column {
@@ -209,9 +200,12 @@ fun PokedexEntry(
                     .build(),
                 contentDescription = entry.pokemonName,
                 onSuccess = {
-                    viewModel.calcDominantColor(it.result.image.toBitmap()) { color ->
-                        dominantColor = color
-                    }
+                    uiEvent(PokemonListUiEvent.CalcDominantColor(
+                        bitmap = it.result.image.toBitmap(),
+                        onFinish = { color ->
+                            dominantColor = color
+                        }
+                    ))
                 },
                 loading = {
                     CircularProgressIndicator(
@@ -238,20 +232,20 @@ fun PokedexEntry(
 fun PokedexRow(
     rowIndex: Int,
     entries: List<PokedexListEntry>,
-    navController: NavController?
+    uiEvent: (PokemonListUiEvent) -> Unit = {}
 ) {
     Column {
         Row {
             PokedexEntry(
                 entry = entries[rowIndex * 2],
-                navController = navController,
+                uiEvent = uiEvent,
                 modifier = Modifier.weight(1f)
             )
             Spacer(modifier = Modifier.width(16.dp))
             if (entries.size >= rowIndex * 2 + 2) {
                 PokedexEntry(
                     entry = entries[rowIndex * 2 + 1],
-                    navController = navController,
+                    uiEvent = uiEvent,
                     modifier = Modifier.weight(1f)
                 )
             } else {
@@ -282,5 +276,20 @@ fun RetrySection(
 @Preview
 @Composable
 fun PreviewPokemonList() {
-    PokemonListScreen(null)
+    PokemonListScreen(
+        state = PokemonListState(
+            pokemonList = listOf(
+                PokedexListEntry(
+                    pokemonName = "Bulbasaur",
+                    imageUrl = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1",
+                    number = 1
+                ),
+                PokedexListEntry(
+                    pokemonName = "Ivysaur",
+                    imageUrl = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/2",
+                    number = 2
+                )
+            )
+        )
+    ) {}
 }

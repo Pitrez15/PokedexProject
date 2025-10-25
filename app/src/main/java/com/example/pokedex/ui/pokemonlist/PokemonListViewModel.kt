@@ -10,6 +10,7 @@ import com.example.pokedex.repository.PokemonRepository
 import com.example.pokedex.util.Constants.PAGE_SIZE
 import com.example.pokedex.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -29,6 +30,48 @@ class PokemonListViewModel @Inject constructor(
 
     init {
         loadPokemonPaginated()
+    }
+
+    fun searchPokemonList(query: String) {
+        val listToSearch = if (_pokemonListState.value.isSearchStarted) {
+            _pokemonListState.value.pokemonList
+        } else {
+            _pokemonListState.value.cachedPokemonList
+        }
+
+        viewModelScope.launch(Dispatchers.Default) {
+            if (query.isEmpty()) {
+                _pokemonListState.update {
+                    it.copy(
+                        pokemonList = it.cachedPokemonList,
+                        isSearching = false,
+                        isSearchStarted = true
+                    )
+                }
+                return@launch
+            }
+
+            val results = listToSearch.filter {
+                it.pokemonName.contains(query.trim(), ignoreCase = true) ||
+                        it.number.toString() == query.trim()
+            }
+
+            if (_pokemonListState.value.isSearchStarted) {
+                _pokemonListState.update {
+                    it.copy(
+                        cachedPokemonList = it.pokemonList,
+                        isSearchStarted = false
+                    )
+                }
+            }
+
+            _pokemonListState.update {
+                it.copy(
+                    pokemonList = results,
+                    isSearching = true
+                )
+            }
+        }
     }
 
     fun loadPokemonPaginated() {
@@ -54,7 +97,8 @@ class PokemonListViewModel @Inject constructor(
                             isLoading = false,
                             loadError = "",
                             pokemonList = curState.pokemonList + pokedexEntries,
-                            endReached = endReached
+                            endReached = endReached,
+                            cachedPokemonList = curState.pokemonList + pokedexEntries,
                         )
                     }
 
@@ -68,6 +112,7 @@ class PokemonListViewModel @Inject constructor(
                         )
                     }
                 }
+                is Resource.Loading<*> -> TODO()
             }
         }
     }
@@ -79,6 +124,17 @@ class PokemonListViewModel @Inject constructor(
             palette?.dominantSwatch?.rgb?.let { colorValue ->
                 onFinish(Color(colorValue))
             }
+        }
+    }
+
+    fun resetSearch() {
+        _pokemonListState.update {
+            it.copy(
+                pokemonList = it.cachedPokemonList,
+                isSearchStarted = true,
+                isSearching = false,
+                searchQuery = ""
+            )
         }
     }
 }
